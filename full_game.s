@@ -5,7 +5,7 @@
 # x5 = Loop counter
 # x6 = counter + inport peripheral address (without offset)
 # x7 = temp value when drawing initial display / counter value / temporary value for adding to display
-# x8 = 1/0 if bit in sequence should be on or off
+# x8 = 1 or 0 if bit in sequence should be on or off / timer display value
 # x9 = counter least significant digit threshold
 # x10 = oneTick countdown value
 # x11 = 1
@@ -16,7 +16,7 @@
 # x17 = lives display value
 # x18 = oneTick delay (decrease to speed up game)
 # x19 = oneTick delay decrement amount (rate at which game speeds up)
-
+#
 main:
     lui x6 0x00010          # Counter peripheral address
     addi x3 x0 3            # control0 register bits up, ce = 1,1
@@ -29,11 +29,9 @@ main:
     lui x17 0xEEE00         # Life value for display (3 blocks for 3 lives)
     sw x17 0x4(x3)          # Load starting lives to display 
     lui x16 0x80000         # Initialise score display to 1 bit (right to left on display)
-    lui x18 0x00601         # Initialise tick delay
-    lui x19 0xf0000         
-    srai x19 x19 11         # initialise tick decrement (-0d131072)
-    # addi x19 x19 -1
-    
+    lui x18 0x00140         # Initialise tick delay
+    lui x19 0xffffb         # initialise tick decrement (-0d131072)
+
     # addi sp zero 0x100    # Initialise stack pointer (sp)
     lui sp 0x0AA9           # Diff sp needed for testing in VSCode
     addi sp sp -32          # Reserve 8 x 32-bit words
@@ -45,7 +43,6 @@ mainLoop:
 jal ra generateSequence
 jal ra countdown
 jal ra checkCorrectInput
-# jal ra incrementScore
 bne x14 x0 mainLoop         # While number of lives remaining is not 0
 lui x15 0xDEAD0
 end: beq x0 x0 end
@@ -166,48 +163,30 @@ addi x5 x5 -1
 bne x5 x0 spacedLineLoop
 ret
 
-
-
 countdown:
 sw ra 0(sp)
 addi sp sp 4
-# lui x3, 0x0
-# addi x3 x3 0x38 # Countdown display line
-lui x4 0xff800
-jal ra tickDisplay
-lui x4 0xfc000
-jal ra tickDisplay
-lui x4 0xe0000
-jal ra tickDisplay
-lui x4 0x00000
-jal ra tickDisplay
+addi x4 x0 -1
+jal ra countDownTickLoop
 addi sp sp -4
 lw ra 0(sp)
 ret
 
-tickDisplay:
+countDownTick:
 sw ra 0(sp)
 addi sp sp 4
+countDownTickLoop:
 sw x4 0x1c(x3)
-sw x4 0x18(x3)
-sw x4 0x14(x3)
-jal oneTickDelay
-addi sp sp -4
-lw ra 0(sp)
-ret
-
-oneTickDelay:
-sw ra 0(sp)
-addi sp sp 4
-#addi x10 x0 1
 add x10 x0 x18 # Set tick delay count
-jal ra oneTickLoop
+jal oneTickDelayLoop
+slli x4 x4 2
+bne x4 x0 countDownTickLoop
 addi sp sp -4
 lw ra 0(sp)
 ret
 
-oneTickLoop:
+oneTickDelayLoop:
 addi x10 x10 -1         # decr delay counter
-bne  x10 x0, oneTickLoop # branch: loop if x10 != 0
+bne  x10 x0, oneTickDelayLoop # branch: loop if x10 != 0
 ret
 
