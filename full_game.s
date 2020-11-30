@@ -13,10 +13,11 @@
 # x13 = value read from inport
 # x14 = Lives
 # x16 = score display value
-# x17 = lives display value
+# x17 = used for generating sequence
 # x18 = oneTick delay (decrease to speed up game)
 # x19 = oneTick delay decrement amount (rate at which game speeds up)
-# x20 = used for generating sequence
+# x20-x23 = Values to write to memory to show lives as hearts on LED array 
+
 
 setup:
     lui x6 0x00010          # Counter peripheral address
@@ -25,10 +26,17 @@ setup:
     addi x3 x0 0            # Initialise memory array address in register x3
     addi x14 x0 3           # Initialise number of lives in x14
     lui x16 0x80000         # Initialise score display to 1 bit (right to left on display)
-    lui x17 0xEEE00         # Value to show number of lives on display (3 blocks for 3 lives)
-    sw x17 0x8(x3)          # Load starting lives to display 
     lui x18 0x0013b         # Initialise tick delay
     lui x19 0xffffb         # initialise tick decrement (-0d131072)
+    # Initialise lives display
+    lui x20 0x28a28         
+    lui x21 0x7df7c
+    lui x22 0x38e38    
+    lui x23 0x10410
+    sw x20 0x14(x3)
+    sw x21 0x10(x3)
+    sw x22 0x0c(x3)
+    sw x23 0x8(x3)
     addi sp zero 0x100      # Initialise stack pointer (sp)
     addi sp sp -32          # Reserve 8 x 32-bit words
     # DRAW FRAME ON LED ARRAY:
@@ -57,7 +65,6 @@ mainLoop:
     bne x14 x0 mainLoop         # While number of lives remaining is not 0
     lui x15 0xDEAD0
     end: beq x0 x0 end
-
     generateSequence:
         sw ra 0(sp)             # Store return address on stack
         addi sp sp 4            # Increment sp by 4
@@ -65,13 +72,13 @@ mainLoop:
         lui x4 0x82082
         addi x4 x4 0x080
         srli x18 x18 12             # Shift delay (changes every point scored) for first input to sequence generation
-        xor x20 x18 x20             # XOR delay bits that changed with previous sequence
+        xor x17 x18 x17             # XOR delay bits that changed with previous sequence
         slli x18 x18 12             # Return x18 to correct delay value
         lw x13 0xc(x6)              # read inport and store in register 13
         lw x7, 0x8(x6)              # read xounter and store in register 7
-        xor x7 x13 x7               # XOR of counter and inport is XOR'd with x20 to further randomise sequence
-        xor x20 x7 x20
-        andi x20 x20 0b1111         # Mask to lower 4 bits for sequence to match
+        xor x7 x13 x7               # XOR of counter and inport is XOR'd with x17 to further randomise sequence
+        xor x17 x7 x17
+        andi x17 x17 0b1111         # Mask to lower 4 bits for sequence to match
         jal ra checkIfAddNote1
         jal ra checkIfAddNote2
         jal ra checkIfAddNote3
@@ -84,7 +91,7 @@ mainLoop:
         ret
         checkIfAddNote1:
             addi x11 x0 0b1000 
-            and x8 x20 x11
+            and x8 x17 x11
             beq x8 x11 addNote1
             ret
             addNote1:
@@ -94,7 +101,7 @@ mainLoop:
                 ret
         checkIfAddNote2:
             addi x11 x0 0b0100 
-            and x8 x20 x11
+            and x8 x17 x11
             beq x8 x11 addNote2
             ret
             addNote2:
@@ -104,7 +111,7 @@ mainLoop:
                 ret
         checkIfAddNote3:
             addi x11 x0 0b0010 
-            and x8 x20 x11
+            and x8 x17 x11
             beq x8 x11 addNote3
             ret
             addNote3:
@@ -114,7 +121,7 @@ mainLoop:
                 ret
         checkIfAddNote4:
             addi x11 x0 0b0001 
-            and x8 x20 x11
+            and x8 x17 x11
             beq x8 x11 addNote4
             ret
             addNote4:
@@ -123,7 +130,6 @@ mainLoop:
                 or x4 x4 x7
                 addi x12 x12 0x1
                 ret
-
 
     countdown:
         sw ra 0 (sp)
@@ -153,14 +159,29 @@ mainLoop:
 
 
     checkCorrectInput:
+        
         lw x13 0xc(x6)              # read inport and store value in register 13
         srli x13 x13 12             # Shift right to make digit position match x12
         bne x13 x12 removeOneLife
         beq x13 x12 increaseScoreAndDifficulty
         removeOneLife:
+            sw ra 0 (sp)
+            addi sp sp 4
             addi x14 x14 -1             # Decrement number of lives remaining by 1
-            slli x17 x17 4              # Remove one block from life count display
-            sw x17 0x8(x3)              # Update display memory
+            # Remove one heart from life count display
+            slli x20 x20 6
+            slli x21 x21 6
+            slli x22 x22 6
+            slli x23 x23 6
+            sw x20 0x14(x3)             # Update LED array memory
+            sw x21 0x10(x3)
+            sw x22 0x0c(x3)
+            sw x23 0x8(x3)
+            beq x14 x0 skipPityCountdown
+            jal countdown # If life lost, but lives are not 0, give an extra "pity countdown" before the next sequence to allow the user to catch up
+            skipPityCountdown:
+            addi sp sp -4
+            lw ra 0(sp)
             ret
         increaseScoreAndDifficulty:
             sw x16 0(x3)              # Save score to display memory at offset 0xc
