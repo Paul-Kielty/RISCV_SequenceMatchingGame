@@ -167,24 +167,24 @@ mainLoop:
         removeOneLife:
             sw ra 0 (sp)
             addi sp sp 4
-            addi x14 x14 -1             # Decrement number of lives remaining by 1
+            addi x14 x14 -1                 # Decrement number of lives remaining by 1
             # Remove one heart from life count display
             slli x20 x20 6
             slli x21 x21 6
             slli x22 x22 6
             slli x23 x23 6
-            sw x20 0x14(x3)             # Update LED array memory
+            sw x20 0x14(x3)                 # Update LED array memory
             sw x21 0x10(x3)
             sw x22 0x0c(x3)
             sw x23 0x8(x3)
-            beq x14 x0 skipPityCountdown
-            jal countdown # If life lost, but lives are not 0, give an extra "pity countdown" before the next sequence to allow the user to catch up
+            beq x14 x0 skipPityCountdown    # If the player has no lives remaining, skip the "pity countdown"
+            jal countdown                   # If life lost, but lives are not 0, give an extra "pity countdown" before the next sequence to allow the user to catch up
             skipPityCountdown:
             addi sp sp -4
             lw ra 0(sp)
             ret
         increaseScoreAndDifficulty:
-            sw x16 0(x3)              # Save score to display memory at offset 0xc
+            sw x16 0(x3)                # Save score to display memory at offset 0xc
             srai x16 x16 1              # Increase score display by 1 bit (right to left) to be displayed next cycle
             add x18 x18 x19             # Decrease tick delay to increase difficulty
             ret
