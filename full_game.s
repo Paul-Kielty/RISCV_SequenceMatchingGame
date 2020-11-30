@@ -50,9 +50,9 @@ bne x14 x0 mainLoop         # While number of lives remaining is not 0
 lui x15 0xDEAD0
 end: beq x0 x0 end
 
-incrementScore:
-srai x16 x16 1              # Increase score display by 1 bit (right to left)
+increaseScoreAndDifficulty:
 sw x16 0xc(x3)              # Save score to display memory at offset 0xc
+srai x16 x16 1              # Increase score display by 1 bit (right to left) to be displayed next cycle
 add x18 x18 x19             # Decrease tick delay to increase difficulty
 ret
 
@@ -60,7 +60,7 @@ checkCorrectInput:
 lw x13 0xc(x6)              # read inport and store in register 14 
 srli x13 x13 12             # Shift right to make digit position match x12
 bne x13 x12 removeOneLife
-beq x13 x12 incrementScore
+beq x13 x12 increaseScoreAndDifficulty
 
 removeOneLife:
 addi x14 x14 -1             # Decrement number of lives remaining by 1
