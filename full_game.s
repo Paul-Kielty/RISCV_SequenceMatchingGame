@@ -11,13 +11,13 @@
 # x11 = mask for checking what bit to add to sequence
 # x12 = required value to input
 # x13 = value read from inport
-# x14 = Lives
-# x16 = score display value
+# x14 = Life count = mainLoop exit condition -> losing state
+# x15 = Max score = mainLoop exit condition -> winning state
+# x16 = Player score data for LED array
 # x17 = used for generating sequence
 # x18 = oneTick delay (decrease to speed up game)
 # x19 = oneTick delay decrement amount (rate at which game speeds up)
 # x20-x23 = Values to write to memory to show lives as hearts on LED array 
-
 
 setup:
     addi x3 x0 0            # Initialise x3 for addresses clearing LED array on reset
@@ -32,7 +32,9 @@ setup:
     lui x6 0x00010          # Counter peripheral address
     sw x5 0(x6)             # Write to control0, address offset 0
     addi x14 x0 3           # Initialise number of lives in x14
-    lui x16 0x80000         # Initialise score display to 1 bit (right to left on display)
+    addi x15 x0 -1          # Initialise final score to reach
+    # lui x15 0xfffff          # FOR TESTING
+    addi x16 x0 0           # Initialise score display data (right to left on display)
     lui x18 0x0013b         # Initialise tick delay
     lui x19 0xffffb         # initialise tick decrement (-0d131072)
     # Initialise lives display
@@ -74,12 +76,18 @@ setup:
     
 
 mainLoop:
+    beq x16 x15 win
     jal ra generateSequence
     jal ra countdown
     jal ra checkCorrectInput
     bne x14 x0 mainLoop         # While number of lives remaining is not 0
-    lui x15 0xDEAD0
-    end: beq x0 x0 end
+    lui x1 0xDEAD0
+    end: 
+        beq x0 x0 end
+    win:
+        lui x1 0xAAAAA
+        beq x0 x0 end
+
     generateSequence:
         sw ra 0(sp)             # Store return address on stack
         addi sp sp 4            # Increment sp by 4
@@ -90,7 +98,7 @@ mainLoop:
         xor x17 x18 x17             # XOR delay bits that changed with previous sequence
         slli x18 x18 12             # Return x18 to correct delay value
         lw x13 0xc(x6)              # read inport and store in register 13
-        lw x7, 0x8(x6)              # read xounter and store in register 7
+        lw x7, 0x8(x6)              # read counter and store in register 7
         xor x7 x13 x7               # XOR of counter and inport is XOR'd with x17 to further randomise sequence
         xor x17 x7 x17
         andi x17 x17 0b1111         # Mask to lower 4 bits for sequence to match
@@ -174,7 +182,6 @@ mainLoop:
 
 
     checkCorrectInput:
-        
         lw x13 0xc(x6)              # read inport and store value in register 13
         srli x13 x13 12             # Shift right to make digit position match x12
         bne x13 x12 removeOneLife
@@ -199,7 +206,12 @@ mainLoop:
             lw ra 0(sp)
             ret
         increaseScoreAndDifficulty:
-            sw x16 0(x3)                # Save score to display memory at offset 0xc
-            srai x16 x16 1              # Increase score display by 1 bit (right to left) to be displayed next cycle
-            add x18 x18 x19             # Decrease tick delay to increase difficulty
-            ret
+            bne x16 x0 skipAddFirstPoint    # If player scored their first point, x16 is set to 0x8000000, for subsequent points 16 is arithmetic shifted right
+            lui x16 0x80000                 # First point, so set score data to assert 1 LED when saved to memory
+            sw x16 0(x3)                    # Save score to LED array memory with offset 0
+            ret                             # Return to mainLoop after adding first point
+            skipAddFirstPoint:                                 
+            srai x16 x16 1                  # Increment score LEDs by 1 bit (right to left)
+            sw x16 0(x3) 
+            add x18 x18 x19                 # Decrease tick delay to increase difficulty
+            ret                             # Return to mainLoop after incrementing score bits asserted 
