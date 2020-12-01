@@ -1,8 +1,8 @@
 # x1 (ra) = Return address
 # x2 (sp) = Stack pointer
-# x3 = Memory address for display
-# x4 = Data to write to display (at x3)
-# x5 = Loop counter
+# x3 = Stores memory address for LED array
+# x4 = Setup clear LED addresses / Data to write to LED Array memory (at x3)
+# x5 = Stopping condition for first clearLED array loop / Control0 up & ce data / Loop count for the number of lines in drawFrame
 # x6 = counter + inport peripheral address (without offset)
 # x7 = temp value when drawing initial display / counter value / temporary value for adding to display
 # x8 = 1 or 0 if bit in sequence should be on or off / timer display value
@@ -20,10 +20,17 @@
 
 
 setup:
+    addi x3 x0 0            # Initialise x3 for addresses clearing LED array on reset
+    addi x4 x0 0            # Initialise data to write to LED array memory (0 to clear display on reset)
+    addi x5 x0 0x40         # Set x5 for exit condition in clearLEDArray
+    clearLEDArray:
+    sw x4 0(x3)
+    addi x3 x3 4
+    bne x3 x5 clearLEDArray
+    addi x3 x0 0            # Reset x3 to 0 to store LED array memory address
+    addi x5 x0 3            # Control0 register bits up, ce = 1,1
     lui x6 0x00010          # Counter peripheral address
-    addi x3 x0 3            # Control0 register bits up, ce = 1,1
-    sw x3 0(x6)             # Write to control0, address offset 0
-    addi x3 x0 0            # Initialise memory array address in register x3
+    sw x5 0(x6)             # Write to control0, address offset 0
     addi x14 x0 3           # Initialise number of lives in x14
     lui x16 0x80000         # Initialise score display to 1 bit (right to left on display)
     lui x18 0x0013b         # Initialise tick delay
@@ -39,6 +46,8 @@ setup:
     sw x23 0x8(x3)
     addi sp zero 0x100      # Initialise stack pointer (sp)
     addi sp sp -32          # Reserve 8 x 32-bit words
+
+
     # DRAW FRAME ON LED ARRAY:
     lui x4 0xfffff          # Solid line on bits 31-7 = 0xFFFFF80
     addi x4 x4 0x7c0
@@ -50,6 +59,11 @@ setup:
     addi x5 x0 5            # Number of times to draw the line = 5
     addi x7 x0 0x28         # Temporary incrementing address for drawing initial display
     jal ra spacedLineLoop
+    sw ra 0 (sp)
+    addi sp sp 4
+    jal ra countdown        # Initial countdown for the user to get ready
+    addi sp sp -4
+    lw ra 0(sp)
     beq x0 x0 mainLoop      # After setup go to mainLoop
     spacedLineLoop:
         sw x4, 0(x7)
@@ -57,6 +71,7 @@ setup:
         addi x5 x5 -1
         bne x5 x0 spacedLineLoop
         ret
+    
 
 mainLoop:
     jal ra generateSequence
