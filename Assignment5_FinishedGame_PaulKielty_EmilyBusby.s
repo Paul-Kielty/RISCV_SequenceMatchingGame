@@ -79,7 +79,7 @@ setup:
 mainLoop:                   # Primary gameplay loop. Exits only when the player either wins or loses
     beq x16 x15 win             # If player score (x16) == max score (x15), enter win state. Otherwise continue mainLoop
     jal ra generateSequence     # Generate a pseudo-random sequence for the player to match and save it to the LED array
-    jal ra countdown            # Run a countdown to give time for the player to match the sequence on inport
+    jal ra countdown            # Run a countdown to give the player time to match the sequence on inport
     jal ra checkCorrectInput    # Check if the inport value matches the sequence, and takes action based off result
     bne x14 x0 mainLoop         # If the player has lives remaining, repeat mainLoop. Otherwise continue into lose state
     lui x1 0xDEAD0              # Write to register x1 to show the player they have lost
@@ -178,17 +178,17 @@ mainLoop:                   # Primary gameplay loop. Exits only when the player 
     countdown:
         sw ra 0 (sp)
         addi sp sp 4
-        addi x4 x0 -1
-        jal ra countDownTick
+        addi x4 x0 -1                  # Set full countdown line
+        jal ra countDownTick           
         addi sp sp -4
         lw ra 0(sp)
         ret
         countDownTick:
             sw ra 0(sp)
             addi sp sp 4
-            countDownTickLoop:
+            countDownTickLoop:         # Shifts the countdown left by 2 bits every "tick"
                 sw x4 0x1c(x3)
-                add x10 x0 x18 # Set tick delay
+                add x10 x0 x18         # Set the delay of each tick with value in x18
                 jal oneTickDelayLoop
                 slli x4 x4 2
                 bne x4 x0 countDownTickLoop
@@ -197,7 +197,7 @@ mainLoop:                   # Primary gameplay loop. Exits only when the player 
                 lw ra 0(sp)
                 ret
                 oneTickDelayLoop:
-                    addi x10 x10 -1         # decr delay counter
+                    addi x10 x10 -1               # decr delay counter
                     bne  x10 x0, oneTickDelayLoop # branch: loop if x10 != 0
                     ret
 
@@ -210,7 +210,7 @@ mainLoop:                   # Primary gameplay loop. Exits only when the player 
         removeOneLife:
             sw ra 0 (sp)
             addi sp sp 4
-            addi x14 x14 -1                 # Decrement number of lives remaining by 1
+            addi x14 x14 -1          # Decrement number of lives remaining by 1
             # Remove one heart from life count display (next 8 lines)
             slli x20 x20 6
             slli x21 x21 6
