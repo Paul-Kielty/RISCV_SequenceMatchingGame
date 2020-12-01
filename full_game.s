@@ -33,7 +33,6 @@ setup:
     sw x5 0(x6)             # Write to control0, address offset 0
     addi x14 x0 3           # Initialise number of lives in x14
     addi x15 x0 -1          # Initialise final score to reach
-    # lui x15 0xfffff          # FOR TESTING
     addi x16 x0 0           # Initialise score display data (right to left on display)
     lui x18 0x0013b         # Initialise tick delay
     lui x19 0xffffb         # initialise tick decrement (-0d131072)
@@ -84,8 +83,26 @@ mainLoop:
     lui x1 0xDEAD0
     end: 
         beq x0 x0 end
-    win:
-        lui x1 0xAAAAA
+    win:                        # Write "WINNER!" to LED array
+        addi x4 x0 0
+        sw x4, 0x3c(x3)
+        lui x4 0x45451
+        addi x4 x4 0x7ba
+        sw x4, 0x38(x3)
+        lui x4 0x45659
+        addi x4 x4 0x42a
+        sw x4, 0x34(x3)
+        lui x4 0x55555
+        addi x4 x4 0x73a
+        sw x4, 0x30(x3)
+        lui x4 0x554d3
+        addi x4 x4 0x430
+        sw x4, 0x2c(x3)
+        lui x4 0x29451
+        addi x4 x4 0x7aa
+        sw x4, 0x28(x3)
+        addi x4 x0 0
+        sw x4, 0x24(x3)
         beq x0 x0 end
 
     generateSequence:
